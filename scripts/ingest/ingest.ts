@@ -60,7 +60,18 @@ export async function ingestFile(
   path: string,
   opts: { storagePath?: string } = {},
 ): Promise<IngestResult> {
-  const buf = readFileSync(path);
+  return ingestBuffer(db, ownerId, basename(path), readFileSync(path), opts);
+}
+
+/** Same pipeline, but from an in-memory buffer (used by the web upload route). */
+export async function ingestBuffer(
+  db: Client,
+  ownerId: string,
+  filename: string,
+  buf: Buffer,
+  opts: { storagePath?: string } = {},
+): Promise<IngestResult> {
+  const path = filename;
   const sha = createHash("sha256").update(buf).digest("hex");
   const parsed = await parseFile(path, buf);
 

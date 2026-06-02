@@ -1,0 +1,14 @@
+# Supabase CLI config. `supabase link --project-ref <ref>` then `supabase db push`.
+project_id = "health-command-center"
+
+[db]
+major_version = 16
+
+[auth]
+enable_signup = true
+# Set to your deployed URL in the dashboard (Authentication → URL Configuration).
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+
+[storage]
+enabled = true

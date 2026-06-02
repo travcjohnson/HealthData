@@ -108,7 +108,10 @@ export async function extractFromText(text: string): Promise<LlmExtraction> {
 
 /** Extract from a PDF file path (pdf-parse → text → LLM/deterministic). */
 export async function extractFromPdf(buffer: Buffer): Promise<LlmExtraction> {
-  const pdfParse = (await import("pdf-parse")).default as (b: Buffer) => Promise<{ text: string }>;
+  // import the inner lib path to avoid pdf-parse's debug-mode auto-run on import
+  const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default as (
+    b: Buffer,
+  ) => Promise<{ text: string }>;
   const { text } = await pdfParse(buffer);
   return extractFromText(text);
 }

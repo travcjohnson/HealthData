@@ -1,80 +1,42 @@
-# Created by .ignore support plugin (hsz.mobi)
-### JetBrains template
-# Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and WebStorm
-# Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
 
-# User-specific stuff
-.idea/**/workspace.xml
-.idea/**/tasks.xml
-.idea/**/dictionaries
-.idea/**/shelf
-.idea/dataSources.xml
+# next.js
+/.next/
+/out/
+next-env.d.ts
 
-# Sensitive or high-churn files
-.idea/**/dataSources/
-.idea/**/dataSources.ids
-.idea/**/dataSources.local.xml
-.idea/**/sqlDataSources.xml
-.idea/**/dynamic.xml
-.idea/**/uiDesigner.xml
-.idea/**/dbnavigator.xml
+# production
+/build
 
-# Gradle
-.idea/**/gradle.xml
-.idea/**/libraries
+# misc
+.DS_Store
+*.pem
 
-# CMake
-cmake-build-debug/
-cmake-build-release/
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# Mongo Explorer plugin
-.idea/**/mongoSettings.xml
+# env files (NEVER commit secrets)
+.env
+.env*.local
+.env.local
 
-# File-based project format
-*.iws
+# vercel
+.vercel
 
-# IntelliJ
-out/
+# typescript
+*.tsbuildinfo
 
-# VS Code files for those working on multiple tools
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# mpeltonen/sbt-idea plugin
-.idea_modules/
-
-# JIRA plugin
-atlassian-ide-plugin.xml
-
-# Cursive Clojure plugin
-.idea/replstate.xml
-
-# Crashlytics plugin (for Android Studio and IntelliJ)
-com_crashlytics_export_strings.xml
-crashlytics.properties
-crashlytics-build.properties
-fabric.properties
-
-# Editor-based Rest Client
-.idea/httpRequests
-
-/dist/
-vendor
-test.go
-/.couchdb
-
-config.dev.yaml
-.cache/
-cache/
-fasten-*.db
-fasten-*.db-shm
-fasten-*.db-wal
-fasten.db
-fasten.db-shm
-fasten.db-wal
-
-backend/resources/related_versions.json
-frontend/documentation.json
+# local data / uploads (never commit personal health data)
+/data/
+/uploads/
+/tmp/
+*.pdf
+*.xml.gz
+apple_health_export*

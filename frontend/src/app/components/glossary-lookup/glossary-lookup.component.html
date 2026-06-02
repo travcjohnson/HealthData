@@ -1,8 +1,0 @@
-<div *ngIf="!loading else isLoadingTemplate">
-  <div [innerHTML]="description" externalLink></div>
-  <p>Source: <a [href]="url" externalLink>{{source}}</a></p>
-</div>
-
-<ng-template #isLoadingTemplate>
-  <app-loading-spinner [loadingTitle]="'Please wait, loading glossary entry...'"></app-loading-spinner>
-</ng-template>

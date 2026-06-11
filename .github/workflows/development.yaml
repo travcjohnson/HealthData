@@ -45,6 +45,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      # `make dep-backend` runs `go mod tidy`, which re-reads the go.mod of every
+      # dependency. For fasten-sources that falls back to `git ls-remote`, which
+      # in this container prompts for github credentials and fails. Authenticate
+      # git with the Actions token (it can read the public module) so the fetch
+      # succeeds regardless of how Go resolves it.
+      - name: Configure git auth for Go module fetches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global --add safe.directory '*'
+          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
       - name: Setup
         run: |
           go install github.com/golang/mock/mockgen@v1.6.0

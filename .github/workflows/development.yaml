@@ -61,8 +61,13 @@ jobs:
           go install github.com/golang/mock/mockgen@v1.6.0
           go generate ./...
       - name: Test Backend
+        # Run `go test` directly instead of `make test-backend-coverage`. The
+        # make target depends on `dep-backend`, which runs `go mod tidy && go
+        # mod vendor`; tidy re-resolves the whole module graph and fails trying
+        # to git-fetch fasten-sources. `go generate` above already populated the
+        # module cache, so a direct test run against the committed go.mod works.
         run: |
-          make test-backend-coverage
+          go test -coverprofile=backend-coverage.txt -covermode=atomic ./...
           CGO_ENABLED=0 go build -buildvcs=false ./backend/cmd/fasten/
       - name: Upload coverage
         uses: actions/upload-artifact@v4

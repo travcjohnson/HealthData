@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { HttpClient } from '@angular/common/http';
-import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { FormsModule } from '@angular/forms';
+import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { HTTP_CLIENT_TOKEN } from '../../dependency-injection';
 
 import { FormRequestHealthSystemComponent } from './form-request-health-system.component';
@@ -13,7 +14,9 @@ describe('FormRequestHealthSystemComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       declarations: [ FormRequestHealthSystemComponent ],
-      imports: [ HttpClientTestingModule ],
+      // FormsModule provides ngForm/ngModel; NgbModule provides ngbTooltip —
+      // both are used by the template and required for detectChanges() to render.
+      imports: [ HttpClientTestingModule, FormsModule, NgbModule ],
       providers: [ NgbActiveModal, {
         provide: HTTP_CLIENT_TOKEN,
         useClass: HttpClient,

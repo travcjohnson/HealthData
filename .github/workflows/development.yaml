@@ -35,39 +35,16 @@ jobs:
     container: ghcr.io/packagrio/packagr:latest-golang
     env:
       STATIC: true
-      # fasten-sources@v0.6.15 can no longer be fetched via direct git in this
-      # container — git ls-remote on the module's VCS cache prompts for github
-      # credentials and fails. Dropping the ",direct" fallback forces EVERY
-      # module read through the proxy (which still serves the tag), so Go never
-      # touches git. GOSUMDB=off avoids a parallel sum-database lookup failing.
-      GOPROXY: https://proxy.golang.org
-      GOSUMDB: "off"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      # `make dep-backend` runs `go mod tidy`, which re-reads the go.mod of every
-      # dependency. For fasten-sources that falls back to `git ls-remote`, which
-      # in this container prompts for github credentials and fails. Authenticate
-      # git with the Actions token (it can read the public module) so the fetch
-      # succeeds regardless of how Go resolves it.
-      - name: Configure git auth for Go module fetches
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global --add safe.directory '*'
-          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
       - name: Setup
         run: |
           go install github.com/golang/mock/mockgen@v1.6.0
           go generate ./...
       - name: Test Backend
-        # Run `go test` directly instead of `make test-backend-coverage`. The
-        # make target depends on `dep-backend`, which runs `go mod tidy && go
-        # mod vendor`; tidy re-resolves the whole module graph and fails trying
-        # to git-fetch fasten-sources. `go generate` above already populated the
-        # module cache, so a direct test run against the committed go.mod works.
         run: |
-          go test -coverprofile=backend-coverage.txt -covermode=atomic ./...
+          make test-backend-coverage
           CGO_ENABLED=0 go build -buildvcs=false ./backend/cmd/fasten/
       - name: Upload coverage
         uses: actions/upload-artifact@v4

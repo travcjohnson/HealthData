@@ -35,10 +35,14 @@ jobs:
     container: ghcr.io/packagrio/packagr:latest-golang
     env:
       STATIC: true
-      # The container resolves modules with direct git, which now fails for
-      # fasten-sources@v0.6.15 (upstream ref gone). The Go proxy still has it.
+      # The container's default direct-git module fetch now fails for
+      # fasten-sources@v0.6.15 (it prompts for credentials on git ls-remote).
+      # Force all module reads through the Go proxy, which still has the tag.
       GOPROXY: https://proxy.golang.org,direct
       GOFLAGS: -mod=mod
+      GONOSUMCHECK: "1"
+      GONOSUMDB: "*"
+      GOPRIVATE: ""
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

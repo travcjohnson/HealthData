@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ridgeline — Travis's Health OS</title>
+  <meta name="description" content="Personal health tracker combining Whoop recovery, Strava training, and daily habits into weekly and monthly OKRs.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0d1117">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div>
+    <div class="logo">Ridge<span>line</span></div>
+    <div class="tagline">Travis's health OS · recover → ride → repeat</div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab" data-tab="dashboard">Today</button>
+  <button class="tab" data-tab="habits">Habits</button>
+  <button class="tab" data-tab="training">Training</button>
+  <button class="tab" data-tab="recovery">Recovery</button>
+  <button class="tab" data-tab="labs">Labs</button>
+  <button class="tab" data-tab="okrs">OKRs</button>
+  <button class="tab" data-tab="data">Data</button>
+</nav>
+
+<main>
+  <div id="demo-banner">
+    <span>⚠️ Showing <strong>sample recovery &amp; activity data</strong> (your real Strava monthly history is real). Log your own days or import exports on the Data tab, then clear the samples.</span>
+    <button class="ghost" id="clear-demo">Clear sample data</button>
+  </div>
+
+  <!-- TODAY -->
+  <section class="view" id="view-dashboard">
+    <p class="muted" id="dash-date"></p>
+    <div class="grid cols-2">
+      <div class="card focus" id="focus-card"></div>
+      <div class="card" id="race-card"></div>
+    </div>
+    <div class="grid cols-2" style="margin-top:16px">
+      <div class="card">
+        <h2>Vitals</h2>
+        <p class="sub">Latest recovery snapshot + this week's volume</p>
+        <div id="vitals"></div>
+        <div style="margin-top:14px">
+          <h2>Recovery — last 14 days</h2>
+          <div id="dash-recovery-chart"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="okr-head">
+          <div>
+            <h2>This week's OKR</h2>
+            <p class="sub">Scores live-update as you log</p>
+          </div>
+          <div class="rings">
+            <div id="ring-week"></div>
+            <div id="ring-month"></div>
+          </div>
+        </div>
+        <div id="dash-okr-summary"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Today's habits</h2>
+      <p class="sub">Tap to check off — feeds straight into this week's OKR score</p>
+      <div id="dash-habits"></div>
+    </div>
+  </section>
+
+  <!-- HABITS -->
+  <section class="view" id="view-habits">
+    <div class="card">
+      <h2>This week</h2>
+      <p class="sub">Monday-start week · streaks count consecutive days</p>
+      <div id="habit-table" style="overflow-x:auto"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Add a habit</h2>
+      <form class="inline" id="habit-add-form">
+        <label>Name <input id="habit-new-name" placeholder="e.g. 8k steps" required></label>
+        <label>Emoji <input id="habit-new-emoji" placeholder="👟" size="4" maxlength="4"></label>
+        <button class="primary" type="submit">Add</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- TRAINING -->
+  <section class="view" id="view-training">
+    <div class="card">
+      <h2>Monthly training hours — your real Strava history</h2>
+      <p class="sub" id="training-history-note"></p>
+      <div id="training-history-chart"></div>
+    </div>
+    <div class="grid cols-2" style="margin-top:16px">
+      <div class="card">
+        <h2>Last 8 weeks</h2>
+        <p class="sub">Hours per week (current week in orange)</p>
+        <div id="training-weeks-chart"></div>
+      </div>
+      <div class="card">
+        <h2>Log an activity</h2>
+        <form class="inline" id="activity-form">
+          <label>Date <input type="date" name="date"></label>
+          <label>Type
+            <select name="type">
+              <option>Ride</option><option>Gravel Ride</option><option>MTB Ride</option>
+              <option>Run</option><option>Yoga</option><option>Hike</option><option>Strength</option><option>Other</option>
+            </select>
+          </label>
+          <label>Name <input name="name" placeholder="Social SATURDAY" size="14"></label>
+          <label>Hours <input name="hours" type="number" step="0.1" min="0" required style="width:74px"></label>
+          <label>Miles <input name="miles" type="number" step="0.1" min="0" style="width:74px"></label>
+          <label>Elev ft <input name="elev" type="number" step="1" min="0" style="width:80px"></label>
+          <button class="primary" type="submit">Log</button>
+        </form>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Recent activities</h2>
+      <div id="activity-list"></div>
+    </div>
+  </section>
+
+  <!-- RECOVERY -->
+  <section class="view" id="view-recovery">
+    <div class="card">
+      <h2>Morning log</h2>
+      <p class="sub">30 seconds each morning — straight off the Whoop app</p>
+      <form class="inline" id="whoop-form">
+        <label>Date <input type="date" name="date"></label>
+        <label>Recovery % <input name="recovery" type="number" min="0" max="100" style="width:90px"></label>
+        <label>Sleep hours <input name="sleep" type="number" step="0.1" min="0" max="14" style="width:90px"></label>
+        <label>Strain <input name="strain" type="number" step="0.1" min="0" max="21" style="width:80px"></label>
+        <button class="primary" type="submit">Save</button>
+      </form>
+      <div style="margin-top:14px" id="recovery-stats"></div>
+    </div>
+    <div class="grid cols-2" style="margin-top:16px">
+      <div class="card">
+        <h2>Recovery — last 28 days</h2>
+        <p class="sub">Green ≥ 67 · yellow 34–66 · red &lt; 34</p>
+        <div id="recovery-chart"></div>
+      </div>
+      <div class="card">
+        <h2>Sleep hours — last 28 days</h2>
+        <p class="sub">Whoop first, Apple Health fills gaps · the 7-hour line is where OKR credit starts</p>
+        <div id="sleep-chart"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px" id="apple-card" hidden>
+      <h2>Apple Health — last 28 days</h2>
+      <p class="sub">Daily HRV (SDNN) and resting heart rate from your export</p>
+      <div class="grid cols-2">
+        <div><h2 class="small muted">HRV ms</h2><div id="hrv-chart"></div></div>
+        <div><h2 class="small muted">Resting HR bpm</h2><div id="rhr-chart"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LABS -->
+  <section class="view" id="view-labs">
+    <div class="card">
+      <h2>What needs attention</h2>
+      <p class="sub" id="labs-source"></p>
+      <div id="labs-insights"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Biomarkers vs optimal targets</h2>
+      <p class="sub">Known values recovered from your reports; blanks fill in when you re-import the PDFs. Informational only — your lab's printed range and your clinician win.</p>
+      <div id="labs-table" style="overflow-x:auto"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Report timeline</h2>
+      <p class="sub">Every lab draw on record</p>
+      <div id="labs-reports"></div>
+    </div>
+  </section>
+
+  <!-- OKRS -->
+  <section class="view" id="view-okrs">
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>Trajectory — weekly OKR score</h2>
+        <p class="sub">Is the system working? Eight weeks of objective scores</p>
+        <div id="okr-trend-chart"></div>
+      </div>
+      <div class="card">
+        <h2>This month vs last month</h2>
+        <p class="sub">The "clearly improving" check</p>
+        <div id="month-compare"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px" id="okr-week"></div>
+    <div class="card" style="margin-top:16px" id="okr-month"></div>
+    <div class="card" style="margin-top:16px">
+      <h2>Past 4 weeks</h2>
+      <p class="sub">The engine re-plans every Monday from what actually happened</p>
+      <div id="okr-history"></div>
+    </div>
+  </section>
+
+  <!-- DATA -->
+  <section class="view" id="view-data">
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>Profile</h2>
+        <div id="profile-box"></div>
+        <p class="muted small" id="data-counts"></p>
+        <p class="muted small">All of your data lives in <em>this browser's</em> localStorage — nothing is sent to any server. Export regularly if you care about it.</p>
+      </div>
+      <div class="card">
+        <h2>Backup</h2>
+        <p class="sub">Full JSON snapshot of everything in the app</p>
+        <button class="primary" id="export-btn">Export JSON</button>
+        <label class="ghost" style="display:inline-block;cursor:pointer;margin-left:8px;padding:8px 14px;border:1px solid var(--border);border-radius:8px">
+          Import JSON <input type="file" id="import-json" accept=".json" hidden>
+        </label>
+      </div>
+    </div>
+    <div class="grid cols-2" style="margin-top:16px">
+      <div class="card">
+        <h2>Import Whoop</h2>
+        <p class="sub">Whoop app → Profile → Data export → <code>physiological_cycles.csv</code>. Recovery, sleep, and strain land on the Recovery tab.</p>
+        <label class="ghost" style="display:inline-block;cursor:pointer;padding:8px 14px;border:1px solid var(--border);border-radius:8px">
+          Choose CSV <input type="file" id="import-whoop" accept=".csv" hidden>
+        </label>
+      </div>
+      <div class="card">
+        <h2>Import Strava</h2>
+        <p class="sub">strava.com → Settings → My Account → Download your archive → <code>activities.csv</code>. Activities land on the Training tab.</p>
+        <label class="ghost" style="display:inline-block;cursor:pointer;padding:8px 14px;border:1px solid var(--border);border-radius:8px">
+          Choose CSV <input type="file" id="import-strava" accept=".csv" hidden>
+        </label>
+      </div>
+    </div>
+    <div class="grid cols-2" style="margin-top:16px">
+      <div class="card">
+        <h2>Import Apple Health</h2>
+        <p class="sub">iPhone → Health app → profile picture → Export All Health Data, unzip, then drop <code>export.xml</code> here. Handles multi-hundred-MB files by streaming. Pulls daily HRV, resting HR, sleep, steps, VO₂max, and workouts.</p>
+        <label class="ghost" style="display:inline-block;cursor:pointer;padding:8px 14px;border:1px solid var(--border);border-radius:8px">
+          Choose export.xml <input type="file" id="import-apple" accept=".xml" hidden>
+        </label>
+        <p class="muted small" id="apple-progress"></p>
+      </div>
+      <div class="card">
+        <h2>Import private lab record</h2>
+        <p class="sub">Your labs JSON (insights, recovered values, report timeline). It loads into <em>this browser only</em> — the public site never contains it.</p>
+        <label class="ghost" style="display:inline-block;cursor:pointer;padding:8px 14px;border:1px solid var(--border);border-radius:8px">
+          Choose labs JSON <input type="file" id="import-labs" accept=".json" hidden>
+        </label>
+      </div>
+      <div class="card">
+        <h2>Target event</h2>
+        <p class="sub">The OKR engine plans builds and tapers around this date</p>
+        <form class="inline" id="target-form">
+          <label>Name <input name="tname" required size="22"></label>
+          <label>Date <input type="date" name="tdate" required></label>
+          <label>Kind <input name="tkind" size="16"></label>
+          <button class="primary" type="submit">Save</button>
+          <button class="ghost" type="button" id="target-reset">Reset to default</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Ridgeline · real Strava history (2023–2024 recaps) + real lab record (41 reports, 2023–2025) · informational only, not medical advice
+</footer>
+
+<script src="js/seed.js"></script>
+<script src="js/labs.js"></script>
+<script src="js/store.js"></script>
+<script src="js/okr.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -473,9 +473,10 @@ var Store = (() => {
 
   function normalizeDate(raw) {
     if (!raw) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
     const d = new Date(raw);
     if (isNaN(d.getTime())) return null;
-    return d.toISOString().slice(0, 10);
+    return localYMD(d); // a 11:30 PM local activity must not roll into the UTC next day
   }
 
   // Minimal quoted-field CSV parser.

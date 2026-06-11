@@ -37,18 +37,35 @@ Targets are computed, not hand-set, and each card shows *why*:
 - **Habit ratchet**: this week's adherence bar = last week's actual + 10 points
   (capped at 90% — always reachable, never comfortable)
 
+## Labs
+
+The **Labs tab** pairs a generic longevity-oriented biomarker catalog (shipped
+in the repo) with a **private lab record** imported as JSON on the Data tab.
+The private record — report timeline, recovered values, analysis findings —
+lives only in the browser's localStorage and is deliberately never committed
+or deployed. Informational only — never medical advice.
+
 ## Data in / data out
 
 - **Recovery tab** — 30-second morning log (recovery %, sleep, strain), or import the
   Whoop data export (`physiological_cycles.csv`)
 - **Training tab** — quick activity log, or import the Strava bulk export
   (`activities.csv`)
+- **Apple Health** — drop `export.xml` on the Data tab; it's scanned in streaming
+  chunks (multi-hundred-MB files are fine) for daily HRV, resting HR, sleep,
+  steps, VO₂max, and workouts
 - **Habits tab** — Monday-start week grid, streaks, add/archive habits
-- **Data tab** — full JSON export/import
+- **Data tab** — full JSON export/import, plus the editable target event the
+  OKR engine plans around
 
 Everything is stored in the browser's localStorage; nothing leaves the device.
 First load seeds 28 days of clearly-labeled sample recovery/activity data so the app
-demonstrates itself — one click clears it.
+demonstrates itself — one click clears it. The app is an installable PWA and works
+offline once loaded.
+
+> **Privacy note:** this repo and its deployed site are deliberately personal —
+> they exist to track one person's real health. Anyone forking this should strip
+> `seed.js`, `labs.js`, and this README before publishing their own copy.
 
 ## Run locally
 

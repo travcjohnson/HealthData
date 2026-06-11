@@ -11,7 +11,7 @@
   Store.seedDemo();
 
   // ---------- routing ----------
-  const TABS = ["dashboard", "habits", "training", "recovery", "okrs", "data"];
+  const TABS = ["dashboard", "habits", "training", "recovery", "labs", "okrs", "data"];
   function route() {
     const hash = (location.hash || "#dashboard").slice(1);
     const tab = TABS.includes(hash) ? hash : "dashboard";
@@ -24,7 +24,7 @@
 
   function render(tab) {
     ({ dashboard: renderDashboard, habits: renderHabits, training: renderTraining,
-       recovery: renderRecovery, okrs: renderOKRs, data: renderData }[tab])();
+       recovery: renderRecovery, labs: renderLabs, okrs: renderOKRs, data: renderData }[tab])();
     $("#demo-banner").style.display = Store.hasDemo() ? "flex" : "none";
   }
 
@@ -51,7 +51,7 @@
       <div class="focus-head">${esc(focus.headline)}</div>
       <p>${esc(focus.detail)}</p>`;
 
-    const race = SEED.targetEvent;
+    const race = Store.targetEvent();
     const days = OKR.daysBetween(today, race.date);
     $("#race-card").innerHTML = days >= 0
       ? `<div class="big-num">${days === 0 ? "🏁" : days}</div>
@@ -229,7 +229,17 @@
       min: 0, max: 100,
       zones: [{ from: 0, to: 33, color: "#e54848" }, { from: 33, to: 66, color: "#e5c048" }, { from: 66, to: 100, color: "#3ec97e" }],
     });
-    Charts.line($("#sleep-chart"), rows.map(r => ({ label: r.label, value: r.sleepHours ?? null })), { min: 4, max: 10 });
+    Charts.line($("#sleep-chart"), rows.map(r => ({ label: r.label, value: Store.dailySleep(r.date) })), { min: 4, max: 10 });
+
+    // Apple Health panel appears once an export has been imported.
+    const apple = Store.state.apple || {};
+    const appleRows = rows.map(r => ({ label: r.label, ...(apple[r.date] || {}) }));
+    const hasApple = appleRows.some(r => r.hrv != null || r.rhr != null);
+    $("#apple-card").hidden = !hasApple;
+    if (hasApple) {
+      Charts.line($("#hrv-chart"), appleRows.map(r => ({ label: r.label, value: r.hrv ?? null })), {});
+      Charts.line($("#rhr-chart"), appleRows.map(r => ({ label: r.label, value: r.rhr ?? null })), {});
+    }
 
     const week = Store.whoopBetween(Store.weekStart(today), today);
     const sleep7 = week.filter(w => w.sleepHours >= 7).length;
@@ -250,12 +260,102 @@
     renderRecovery();
   });
 
+  // ---------- labs ----------
+  const LAB_FLAGS = { watch: ["yellow", "watch"], action: ["red", "act now"], improving: ["green", "improving"], info: ["", "context"] };
+
+  function renderLabs() {
+    const personal = Store.state.labs;
+
+    $("#labs-source").textContent = personal
+      ? "Recovered " + (personal.recoveredAt || "") + " · " + (personal.source || "")
+      : "No private lab record loaded in this browser yet.";
+
+    $("#labs-insights").innerHTML = personal && personal.insights.length
+      ? personal.insights.map(i => {
+          const [col, label] = LAB_FLAGS[i.flag] || ["", ""];
+          return `<div class="row-item">
+            <div><strong>${esc(i.marker)}</strong>
+              <div class="muted small">${esc(i.text)}</div>
+            </div>
+            <span class="score-pill ${col}">${label}</span>
+          </div>`;
+        }).join("")
+      : `<p class="muted">Your lab record stays out of the public site by design. Import your private
+         <strong>labs JSON</strong> on the Data tab to light this up in this browser.</p>`;
+
+    const values = personal ? personal.values : [];
+    const latest = {};
+    for (const v of [...values].sort((a, b) => a.date.localeCompare(b.date))) latest[v.slug] = v;
+
+    let html = `<table class="habit-grid"><thead><tr>
+      <th style="text-align:left">Marker</th><th style="text-align:left">Category</th>
+      <th>Optimal</th><th>Latest known</th><th style="text-align:left">Why it matters</th></tr></thead><tbody>`;
+    for (const m of LABS_CATALOG) {
+      const v = latest[m.slug];
+      const history = values.filter(x => x.slug === m.slug).sort((a, b) => a.date.localeCompare(b.date));
+      const trend = history.length > 1 ? ` <span class="muted small">(${history.map(h => h.value).join(" → ")})</span>` : "";
+      html += `<tr>
+        <td class="habit-name"><strong>${esc(m.name)}</strong></td>
+        <td style="text-align:left" class="muted small">${esc(m.cat)}</td>
+        <td class="muted small">${esc(m.target)} ${esc(m.unit)}</td>
+        <td>${v ? `<strong>${v.value}</strong>${v.approx ? "≈" : ""}${trend}<div class="muted small">${esc(v.date)}</div>` : `<span class="muted small">–</span>`}</td>
+        <td style="text-align:left" class="muted small">${esc(m.why)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+    $("#labs-table").innerHTML = html;
+
+    $("#labs-reports").innerHTML = personal && personal.reports.length
+      ? personal.reports.map(r => `
+        <div class="row-item">
+          <div><strong>${fmtDay(r.date)}</strong> <span class="pill">${esc(r.source)}</span>
+            <div class="muted small">${r.items.map(esc).join(" · ")}</div>
+          </div>
+        </div>`).join("")
+      : `<p class="muted">Imports on the Data tab.</p>`;
+  }
+
   // ---------- okrs ----------
   function renderOKRs() {
     const today = Store.todayStr();
     const ws = Store.weekStart(today);
     const week = OKR.scoreWeek(ws);
     const month = OKR.scoreMonth(today.slice(0, 7));
+
+    // 8-week objective-score trend (current week is partial)
+    const trend = [...Array(8)].map((_, i) => {
+      const w = Store.dateOffset(ws, -7 * (7 - i));
+      return { label: w.slice(5).replace("-", "/"), value: Math.round(OKR.scoreWeek(w).score * 100) };
+    });
+    Charts.line($("#okr-trend-chart"), trend, { min: 0, max: 100 });
+
+    // month-over-month comparison
+    const thisM = today.slice(0, 7);
+    const [y, m] = thisM.split("-").map(Number);
+    const prevM = new Date(y, m - 2, 15);
+    const prevKey = prevM.getFullYear() + "-" + String(prevM.getMonth() + 1).padStart(2, "0");
+    const a = OKR.monthStats(thisM), b = OKR.monthStats(prevKey);
+    const rows = [
+      ["Training hours", a.hours, b.hours, "h"],
+      ["Distance", a.miles, b.miles, " mi"],
+      ["Climbing", a.elevFt, b.elevFt, " ft"],
+      ["Active days", a.activeDays, b.activeDays, ""],
+      ["Avg recovery", a.avgRecovery, b.avgRecovery, "%"],
+      ["≥7h sleep nights", a.sleepNights7, b.sleepNights7, ""],
+      ["Habit adherence", a.habitPct, b.habitPct, "%"],
+    ];
+    $("#month-compare").innerHTML = rows.map(([name, cur, prev, unit]) => {
+      const has = cur != null && prev != null;
+      const delta = has ? cur - prev : null;
+      const col = !has || delta === 0 ? "muted" : delta > 0 ? "green" : "red";
+      const arrow = !has ? "" : delta > 0 ? "▲" : delta < 0 ? "▼" : "–";
+      return `<div class="kr-top" style="padding:5px 0">
+        <span>${esc(name)}</span>
+        <span><strong>${cur ?? "–"}${cur != null ? unit : ""}</strong>
+          <span class="muted small">vs ${prev ?? "–"}${prev != null ? unit : ""}</span>
+          <span class="${col}">${arrow}${has && delta !== 0 ? Math.abs(Math.round(delta * 10) / 10) : ""}</span></span>
+      </div>`;
+    }).join("");
 
     $("#okr-week").innerHTML = okrCard(
       `This week · ${fmtDay(ws)} → ${fmtDay(Store.dateOffset(ws, 6))}`,
@@ -304,19 +404,60 @@
 
   // ---------- data ----------
   function renderData() {
+    const ev = Store.targetEvent();
     $("#profile-box").innerHTML = `
       <p><strong>${esc(SEED.profile.name)}</strong> · ${esc(SEED.profile.location)}<br>
       ${esc(SEED.profile.primarySport)} · Strava athlete #${SEED.profile.stravaAthleteId}<br>
-      <span class="muted small">Target: ${esc(SEED.targetEvent.name)} — ${esc(SEED.targetEvent.date)}</span></p>`;
+      <span class="muted small">Target: ${esc(ev.name)} — ${esc(ev.date)}</span></p>`;
 
     const counts = {
       activities: Store.state.activities.length,
       whoopDays: Object.keys(Store.state.whoop).length,
+      appleDays: Object.keys(Store.state.apple || {}).length,
       habitChecks: Object.values(Store.state.checks).reduce((s, c) => s + Object.keys(c).length, 0),
     };
     $("#data-counts").textContent =
-      `${counts.activities} activities · ${counts.whoopDays} recovery days · ${counts.habitChecks} habit checks stored locally in this browser.`;
+      `${counts.activities} activities · ${counts.whoopDays} recovery days · ${counts.appleDays} Apple Health days · ${counts.habitChecks} habit checks stored locally in this browser.`;
+
+    const f = $("#target-form");
+    f.elements.tname.value = ev.name;
+    f.elements.tdate.value = ev.date;
+    f.elements.tkind.value = ev.kind || "";
   }
+
+  $("#target-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const f = e.target;
+    Store.setTargetEvent({
+      name: f.elements.tname.value.trim(),
+      date: f.elements.tdate.value,
+      kind: f.elements.tkind.value.trim(),
+    });
+    renderData();
+    alert("Target updated — the OKR engine now plans around it.");
+  });
+
+  $("#target-reset").addEventListener("click", () => {
+    Store.setTargetEvent(null);
+    renderData();
+  });
+
+  $("#import-apple").addEventListener("change", async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const prog = $("#apple-progress");
+    prog.textContent = "Scanning… 0%";
+    try {
+      const res = await Store.importAppleHealthXML(file, p => {
+        prog.textContent = "Scanning… " + Math.round(p * 100) + "%";
+      });
+      prog.textContent = `Done: ${res.days} days of metrics, ${res.workouts} workouts, ${res.records.toLocaleString()} records.`;
+      route();
+    } catch (err) {
+      prog.textContent = "Import failed: " + err.message;
+    }
+    e.target.value = "";
+  });
 
   $("#export-btn").addEventListener("click", () => {
     const blob = new Blob([Store.exportJSON()], { type: "application/json" });
@@ -347,6 +488,11 @@
   fileHandler("#import-json", t => Store.importJSON(t));
   fileHandler("#import-whoop", t => Store.importWhoopCSV(t));
   fileHandler("#import-strava", t => Store.importStravaCSV(t));
+  fileHandler("#import-labs", t => Store.importLabsJSON(t));
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => { /* http/file context — fine */ });
+  }
 
   route();
 })();

@@ -22,7 +22,7 @@ var OKR = (() => {
     const prevWeeks = [1, 2, 3].map(i => S.weekVolume(S.dateOffset(weekStartDate, -7 * i)));
     const baselineHours = prevWeeks.reduce((s, w) => s + w.hours, 0) / 3;
 
-    const race = SEED.targetEvent;
+    const race = Store.targetEvent();
     const daysToRace = daysBetween(weekStartDate, race.date);
 
     let phase = "build";
@@ -76,14 +76,17 @@ var OKR = (() => {
     const t = weeklyTargets(weekStartDate);
     const end = S.dateOffset(weekStartDate, 6);
     const vol = S.weekVolume(weekStartDate);
-    const whoop = S.whoopBetween(weekStartDate, end);
-    const sleepNights = whoop.filter(w => w.sleepHours != null && w.sleepHours >= 7).length;
+    let sleepNights = 0;
+    for (let d = weekStartDate; d <= end; d = S.dateOffset(d, 1)) {
+      const s = S.dailySleep(d);
+      if (s != null && s >= 7) sleepNights++;
+    }
     const adh = S.habitAdherence(weekStartDate, end);
 
     const objectiveName = t.phase === "race"
-      ? `Race week: arrive at ${SEED.targetEvent.name} fresh and sharp`
+      ? `Race week: arrive at ${Store.targetEvent().name} fresh and sharp`
       : t.phase === "taper"
-        ? `Taper: convert fitness into freshness for ${SEED.targetEvent.name}`
+        ? `Taper: convert fitness into freshness for ${Store.targetEvent().name}`
         : "Build the engine without breaking the rider";
 
     const krs = [
@@ -152,36 +155,58 @@ var OKR = (() => {
     }
 
     // Race month: respect the taper, then rebuild.
-    if (SEED.targetEvent.date.startsWith(monthStr)) {
-      reasons.push(`${SEED.targetEvent.name} lands this month — the win is racing well, not padding totals.`);
+    if (Store.targetEvent().date.startsWith(monthStr)) {
+      reasons.push(`${Store.targetEvent().name} lands this month — the win is racing well, not padding totals.`);
     }
 
     return { targetMiles, targetHours, targetElev, reasons, pr };
   }
 
-  function scoreMonth(monthStr) {
+  /* Raw monthly stats. Habit/sleep windows are capped at today so the
+   * current month isn't penalized for days that haven't happened yet. */
+  function monthStats(monthStr) {
     const S = Store;
-    const t = monthlyTargets(monthStr);
-    const acts = S.state.activities.filter(a => a.date.startsWith(monthStr));
-    const miles = +acts.reduce((s, a) => s + (a.miles || 0), 0).toFixed(0);
-    const hours = +acts.reduce((s, a) => s + (a.hours || 0), 0).toFixed(1);
-    const elevFt = Math.round(acts.reduce((s, a) => s + (a.elevFt || 0), 0));
-    const activeDays = new Set(acts.map(a => a.date)).size;
-
-    // Sleep consistency across the month.
     const daysInMonth = new Date(+monthStr.slice(0, 4), +monthStr.slice(5, 7), 0).getDate();
-    const whoop = S.whoopBetween(monthStr + "-01", monthStr + "-" + String(daysInMonth).padStart(2, "0"));
-    const sleepOk = whoop.filter(w => w.sleepHours >= 7).length;
+    const first = monthStr + "-01";
+    const lastDay = monthStr + "-" + String(daysInMonth).padStart(2, "0");
+    const today = S.todayStr();
+    const end = lastDay > today ? today : lastDay;
+
+    const acts = S.state.activities.filter(a => a.date.startsWith(monthStr));
+    const whoop = end >= first ? S.whoopBetween(first, end) : [];
+    const recVals = whoop.filter(w => w.recovery != null);
+    const adh = end >= first ? S.habitAdherence(first, end) : { pct: 0, possible: 0 };
+    let sleepNights7 = 0;
+    if (end >= first) {
+      for (let d = first; d <= end; d = S.dateOffset(d, 1)) {
+        const s = S.dailySleep(d);
+        if (s != null && s >= 7) sleepNights7++;
+      }
+    }
+
+    return {
+      miles: +acts.reduce((s, a) => s + (a.miles || 0), 0).toFixed(0),
+      hours: +acts.reduce((s, a) => s + (a.hours || 0), 0).toFixed(1),
+      elevFt: Math.round(acts.reduce((s, a) => s + (a.elevFt || 0), 0)),
+      activeDays: new Set(acts.map(a => a.date)).size,
+      avgRecovery: recVals.length ? Math.round(recVals.reduce((s, w) => s + w.recovery, 0) / recVals.length) : null,
+      sleepNights7,
+      habitPct: adh.possible ? Math.round(adh.pct * 100) : null,
+      hasData: !!(acts.length || whoop.length || adh.possible),
+    };
+  }
+
+  function scoreMonth(monthStr) {
+    const t = monthlyTargets(monthStr);
+    const m = monthStats(monthStr);
     const sleepTarget = 20;
 
-    const adh = S.habitAdherence(monthStr + "-01", monthStr + "-" + String(daysInMonth).padStart(2, "0"));
-
     const krs = [
-      { name: `Ride ${t.targetMiles} mi`, actual: `${miles} mi`, score: clamp(miles / t.targetMiles, 0, 1) },
-      { name: `${t.targetHours}h training time`, actual: `${hours}h`, score: clamp(hours / t.targetHours, 0, 1) },
-      { name: `Climb ${t.targetElev.toLocaleString()} ft`, actual: `${elevFt.toLocaleString()} ft`, score: clamp(elevFt / t.targetElev, 0, 1) },
-      { name: `≥7h sleep on ${sleepTarget} nights`, actual: `${sleepOk} nights`, score: clamp(sleepOk / sleepTarget, 0, 1) },
-      { name: `Habit adherence ≥ 80%`, actual: `${Math.round(adh.pct * 100)}%`, score: clamp(adh.pct / 0.8, 0, 1) },
+      { name: `Ride ${t.targetMiles} mi`, actual: `${m.miles} mi`, score: clamp(m.miles / t.targetMiles, 0, 1) },
+      { name: `${t.targetHours}h training time`, actual: `${m.hours}h`, score: clamp(m.hours / t.targetHours, 0, 1) },
+      { name: `Climb ${t.targetElev.toLocaleString()} ft`, actual: `${m.elevFt.toLocaleString()} ft`, score: clamp(m.elevFt / t.targetElev, 0, 1) },
+      { name: `≥7h sleep on ${sleepTarget} nights`, actual: `${m.sleepNights7} nights`, score: clamp(m.sleepNights7 / sleepTarget, 0, 1) },
+      { name: `Habit adherence ≥ 80%`, actual: `${m.habitPct ?? 0}%`, score: clamp((m.habitPct ?? 0) / 80, 0, 1) },
     ];
     const score = krs.reduce((s, k) => s + k.score, 0) / krs.length;
 
@@ -189,7 +214,7 @@ var OKR = (() => {
       month: monthStr,
       objective: "Be measurably healthier than last month — and prove it",
       targets: t, krs, score,
-      stats: { miles, hours, elevFt, activeDays },
+      stats: m,
     };
   }
 
@@ -199,7 +224,7 @@ var OKR = (() => {
     const today = S.todayStr();
     const w = S.state.whoop[today] || S.state.whoop[S.dateOffset(today, -1)];
     const t = weeklyTargets(S.weekStart(today));
-    const daysToRace = daysBetween(today, SEED.targetEvent.date);
+    const daysToRace = daysBetween(today, Store.targetEvent().date);
 
     let headline, detail, zone;
     if (w && w.recovery != null) {
@@ -225,10 +250,10 @@ var OKR = (() => {
     }
 
     if (daysToRace >= 0 && daysToRace <= 14) {
-      detail += ` ${daysToRace === 0 ? "RACE DAY." : daysToRace + " days to " + SEED.targetEvent.name + "."}`;
+      detail += ` ${daysToRace === 0 ? "RACE DAY." : daysToRace + " days to " + Store.targetEvent().name + "."}`;
     }
     return { headline, detail, zone, daysToRace, phase: t.phase };
   }
 
-  return { weeklyTargets, scoreWeek, monthlyTargets, scoreMonth, todayFocus, daysBetween };
+  return { weeklyTargets, scoreWeek, monthlyTargets, scoreMonth, monthStats, todayFocus, daysBetween };
 })();

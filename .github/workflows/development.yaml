@@ -35,6 +35,10 @@ jobs:
     container: ghcr.io/packagrio/packagr:latest-golang
     env:
       STATIC: true
+      # The container resolves modules with direct git, which now fails for
+      # fasten-sources@v0.6.15 (upstream ref gone). The Go proxy still has it.
+      GOPROXY: https://proxy.golang.org,direct
+      GOFLAGS: -mod=mod
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

@@ -11,7 +11,6 @@
 var SEED = {
   profile: {
     name: "Travis Johnson",
-    email: "travcjohnson@gmail.com",
     location: "San Diego, CA",
     stravaAthleteId: 9337896,
     primarySport: "Gravel / MTB cycling",

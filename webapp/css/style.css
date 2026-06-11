@@ -174,7 +174,7 @@ button.ghost:hover { border-color: var(--muted); }
 
 .score-pill {
   border-radius: 99px; font-weight: 800; font-size: 13px; padding: 3px 10px;
-  border: 1px solid currentColor;
+  border: 1px solid currentcolor;
 }
 .score-pill.big { font-size: 17px; padding: 6px 14px; }
 .score-pill.green { color: var(--green); }

@@ -6,7 +6,10 @@
   <title>Ridgeline — Travis's Health OS</title>
   <meta name="description" content="Personal health tracker combining Whoop recovery, Strava training, and daily habits into weekly and monthly OKRs.">
   <meta name="robots" content="noindex">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>⛰️</text></svg>">
+  <meta name="theme-color" content="#0d1117">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -23,6 +26,7 @@
   <button class="tab" data-tab="habits">Habits</button>
   <button class="tab" data-tab="training">Training</button>
   <button class="tab" data-tab="recovery">Recovery</button>
+  <button class="tab" data-tab="labs">Labs</button>
   <button class="tab" data-tab="okrs">OKRs</button>
   <button class="tab" data-tab="data">Data</button>
 </nav>
@@ -147,15 +151,54 @@
       </div>
       <div class="card">
         <h2>Sleep hours — last 28 days</h2>
-        <p class="sub">The 7-hour line is where OKR credit starts</p>
+        <p class="sub">Whoop first, Apple Health fills gaps · the 7-hour line is where OKR credit starts</p>
         <div id="sleep-chart"></div>
       </div>
+    </div>
+    <div class="card" style="margin-top:16px" id="apple-card" hidden>
+      <h2>Apple Health — last 28 days</h2>
+      <p class="sub">Daily HRV (SDNN) and resting heart rate from your export</p>
+      <div class="grid cols-2">
+        <div><h2 class="small muted">HRV ms</h2><div id="hrv-chart"></div></div>
+        <div><h2 class="small muted">Resting HR bpm</h2><div id="rhr-chart"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LABS -->
+  <section class="view" id="view-labs">
+    <div class="card">
+      <h2>What needs attention</h2>
+      <p class="sub" id="labs-source"></p>
+      <div id="labs-insights"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Biomarkers vs optimal targets</h2>
+      <p class="sub">Known values recovered from your reports; blanks fill in when you re-import the PDFs. Informational only — your lab's printed range and your clinician win.</p>
+      <div id="labs-table" style="overflow-x:auto"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Report timeline</h2>
+      <p class="sub">Every lab draw on record</p>
+      <div id="labs-reports"></div>
     </div>
   </section>
 
   <!-- OKRS -->
   <section class="view" id="view-okrs">
-    <div class="card" id="okr-week"></div>
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>Trajectory — weekly OKR score</h2>
+        <p class="sub">Is the system working? Eight weeks of objective scores</p>
+        <div id="okr-trend-chart"></div>
+      </div>
+      <div class="card">
+        <h2>This month vs last month</h2>
+        <p class="sub">The "clearly improving" check</p>
+        <div id="month-compare"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px" id="okr-week"></div>
     <div class="card" style="margin-top:16px" id="okr-month"></div>
     <div class="card" style="margin-top:16px">
       <h2>Past 4 weeks</h2>
@@ -198,14 +241,43 @@
         </label>
       </div>
     </div>
+    <div class="grid cols-2" style="margin-top:16px">
+      <div class="card">
+        <h2>Import Apple Health</h2>
+        <p class="sub">iPhone → Health app → profile picture → Export All Health Data, unzip, then drop <code>export.xml</code> here. Handles multi-hundred-MB files by streaming. Pulls daily HRV, resting HR, sleep, steps, VO₂max, and workouts.</p>
+        <label class="ghost" style="display:inline-block;cursor:pointer;padding:8px 14px;border:1px solid var(--border);border-radius:8px">
+          Choose export.xml <input type="file" id="import-apple" accept=".xml" hidden>
+        </label>
+        <p class="muted small" id="apple-progress"></p>
+      </div>
+      <div class="card">
+        <h2>Import private lab record</h2>
+        <p class="sub">Your labs JSON (insights, recovered values, report timeline). It loads into <em>this browser only</em> — the public site never contains it.</p>
+        <label class="ghost" style="display:inline-block;cursor:pointer;padding:8px 14px;border:1px solid var(--border);border-radius:8px">
+          Choose labs JSON <input type="file" id="import-labs" accept=".json" hidden>
+        </label>
+      </div>
+      <div class="card">
+        <h2>Target event</h2>
+        <p class="sub">The OKR engine plans builds and tapers around this date</p>
+        <form class="inline" id="target-form">
+          <label>Name <input name="tname" required size="22"></label>
+          <label>Date <input type="date" name="tdate" required></label>
+          <label>Kind <input name="tkind" size="16"></label>
+          <button class="primary" type="submit">Save</button>
+          <button class="ghost" type="button" id="target-reset">Reset to default</button>
+        </form>
+      </div>
+    </div>
   </section>
 </main>
 
 <footer>
-  Ridgeline · built from Travis's real Strava history (Apr 2023 – Sep 2024 recaps) · target: Cuyamaca Epic Team Race, June 20 2026
+  Ridgeline · real Strava history (2023–2024 recaps) + real lab record (41 reports, 2023–2025) · informational only, not medical advice
 </footer>
 
 <script src="js/seed.js"></script>
+<script src="js/labs.js"></script>
 <script src="js/store.js"></script>
 <script src="js/okr.js"></script>
 <script src="js/charts.js"></script>

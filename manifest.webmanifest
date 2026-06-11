@@ -1,0 +1,13 @@
+{
+  "name": "Ridgeline — Travis's Health OS",
+  "short_name": "Ridgeline",
+  "description": "Whoop + Strava + habits + labs, fused into weekly and monthly OKRs.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
